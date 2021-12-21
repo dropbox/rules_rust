@@ -104,7 +104,7 @@ def rustdoc_compile_action(
     # arguments expecting to do so.
     rustdoc_crate_info = _strip_crate_info_output(crate_info)
 
-    args, env = construct_arguments(
+    args, env, extra_link_inputs = construct_arguments(
         ctx = ctx,
         attr = ctx.attr,
         file = ctx.file,
@@ -126,6 +126,7 @@ def rustdoc_compile_action(
         rustdoc = True,
         force_depend_on_objects = is_test,
     )
+    compile_inputs = depset(extra_link_inputs, transitive = [compile_inputs])
 
     # Because rustdoc tests compile tests outside of the sandbox, the sysroot
     # must be updated to the `short_path` equivilant as it will now be
