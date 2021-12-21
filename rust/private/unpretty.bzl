@@ -175,7 +175,7 @@ def _rust_unpretty_aspect_impl(target, ctx):
         if crate_info.is_test:
             rust_flags = get_rust_test_flags(ctx.rule.attr)
 
-        args, env = construct_arguments(
+        args, env, extra_link_inputs = construct_arguments(
             ctx = ctx,
             attr = ctx.rule.attr,
             file = ctx.file,
@@ -204,7 +204,7 @@ def _rust_unpretty_aspect_impl(target, ctx):
 
         ctx.actions.run(
             executable = ctx.executable._process_wrapper,
-            inputs = compile_inputs,
+            inputs = depset(extra_link_inputs, transitive=[compile_inputs]),
             outputs = [unpretty_out],
             env = env,
             arguments = args.all,
