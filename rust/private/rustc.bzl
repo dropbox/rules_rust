@@ -654,7 +654,7 @@ def construct_arguments(
         force_all_deps_direct = False,
         force_link = False,
         stamp = False,
-        remap_path_prefix = "."):
+        remap_path_prefix = ""):
     """Builds an Args object containing common rustc flags
 
     Args:
@@ -680,7 +680,7 @@ def construct_arguments(
         force_link (bool, optional): Whether to add link flags to the command regardless of `emit`.
         stamp (bool, optional): Whether or not workspace status stamping is enabled. For more details see
             https://docs.bazel.build/versions/main/user-manual.html#flag--stamp
-        remap_path_prefix (str, optional): A value used to remap `${pwd}` to. If set to a falsey value, no prefix will be set.
+        remap_path_prefix (str, optional): A value used to remap `${pwd}` to. If set to None, no prefix will be set.
 
     Returns:
         tuple: A tuple of the following items
@@ -785,7 +785,7 @@ def construct_arguments(
     rustc_flags.add("--codegen=debuginfo=" + compilation_mode.debug_info)
 
     # For determinism to help with build distribution and such
-    if remap_path_prefix:
+    if remap_path_prefix is not None:
         rustc_flags.add("--remap-path-prefix=${{pwd}}={}".format(remap_path_prefix))
 
     if emit:
