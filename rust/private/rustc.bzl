@@ -1309,9 +1309,9 @@ def _get_dir_names(files):
 def _symlink_transitive_crates_if_needed(ctx, toolchain, crate_info, dep_info):
     """Collect and symlink the transitive crates into a single directory.
 
-    The reason for this is that when passing a large (350+) number of `-Ldependency=` arguments to rustc on
-    Windows, we seem to be getting some obscure errors such as "failure to call `LoadLibraryExW` that results
-    on some transitive dependencies not being picked up and the build to fail.
+    The reason for this is that when passing a too many `-Ldependency=` arguments to rustc on
+    Windows, we fill up the PATH environment variable and run into errors like "LoadLibraryExW failed".
+    See https://github.com/rust-lang/rust/issues/110889.
 
     If we detect a large number of transitive dependencies we symlink them all into a single directory that
     we can pass to rustc in a single `-Ldependency=` argument.
@@ -1332,8 +1332,13 @@ def _symlink_transitive_crates_if_needed(ctx, toolchain, crate_info, dep_info):
 
     deps = dep_info.transitive_crates.to_list()
 
-    # Only symlink if we are about to pass a large (350+) number of transitive dependencies to rustc.
-    if not deps or len(deps) < 350:
+    # Only symlink if we are about to pass a large number of transitive dependencies to rustc.
+    # In particular, the limit is roughly 32K characters' worth of PATH entries; let's try to
+    # stay under half of that.
+    total_chars = 0
+    for dep in deps:
+        total_chars += len(dep.output.dirname) + 1
+    if total_chars < 16000:
         return None, []
 
     # the crate_info doesn't always define an output, e.g. when building Rust Docs
