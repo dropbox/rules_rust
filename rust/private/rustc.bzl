@@ -788,7 +788,8 @@ def construct_arguments(
         remap_path_prefix = "",
         use_json_output = False,
         build_metadata = False,
-        force_depend_on_objects = False):
+        force_depend_on_objects = False,
+        error_format = None):
     """Builds an Args object containing common rustc flags
 
     Args:
@@ -818,6 +819,7 @@ def construct_arguments(
         use_json_output (bool): Have rustc emit json and process_wrapper parse json messages to output rendered output.
         build_metadata (bool): Generate CLI arguments for building *only* .rmeta files. This requires use_json_output.
         force_depend_on_objects (bool): Force using `.rlib` object files instead of metadata (`.rmeta`) files even if they are available.
+        error_format (str, optional): The --error-format parameter. If None, infers based on `_error_format`, or defaults to "human".
 
     Returns:
         tuple: A tuple of the following items
@@ -903,9 +905,11 @@ def construct_arguments(
     rustc_flags.add("--crate-name=" + crate_info.name)
     rustc_flags.add("--crate-type=" + crate_info.type)
 
-    error_format = "human"
-    if hasattr(attr, "_error_format"):
-        error_format = attr._error_format[ErrorFormatInfo].error_format
+    if error_format == None:
+        if hasattr(attr, "_error_format"):
+            error_format = attr._error_format[ErrorFormatInfo].error_format
+        else:
+            error_format = "human"
 
     if use_json_output:
         # If --error-format was set to json, we just pass the output through
