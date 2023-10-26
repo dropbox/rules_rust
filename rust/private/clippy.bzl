@@ -18,6 +18,7 @@ load("//rust/private:common.bzl", "rust_common")
 load("//rust/private:providers.bzl", "CaptureClippyOutputInfo", "ClippyInfo")
 load(
     "//rust/private:rustc.bzl",
+    "ErrorFormatInfo",
     "collect_deps",
     "collect_inputs",
     "construct_arguments",
@@ -119,6 +120,8 @@ def _clippy_aspect_impl(target, ctx):
         build_info,
     )
 
+    capture_clippy_output = ctx.attr._capture_output[CaptureClippyOutputInfo].capture_output
+
     args, env, extra_link_inputs = construct_arguments(
         ctx = ctx,
         attr = ctx.rule.attr,
@@ -138,6 +141,7 @@ def _clippy_aspect_impl(target, ctx):
         build_flags_files = build_flags_files,
         emit = ["dep-info", "metadata"],
         skip_expanding_rustc_env = True,
+        error_format = "json" if capture_clippy_output else ctx.rule.attr._error_format[ErrorFormatInfo].error_format,
     )
     compile_inputs = depset(extra_link_inputs, transitive = [compile_inputs])
 
@@ -151,7 +155,7 @@ def _clippy_aspect_impl(target, ctx):
 
     # For remote execution purposes, the clippy_out file must be a sibling of crate_info.output
     # or rustc may fail to create intermediate output files because the directory does not exist.
-    if ctx.attr._capture_output[CaptureClippyOutputInfo].capture_output:
+    if capture_clippy_output:
         clippy_out = ctx.actions.declare_file(ctx.label.name + ".clippy.out", sibling = crate_info.output)
         args.process_wrapper_flags.add("--stderr-file", clippy_out)
 
