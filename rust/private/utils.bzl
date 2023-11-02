@@ -125,6 +125,10 @@ def get_lib_name_default(lib):
     # The library name is now everything minus the extension.
     libname = ".".join(comps[:-1])
 
+    # get rid of .pic extension
+    if libname.endswith(".pic"):
+        libname = libname[:-4]
+
     if libname.startswith("lib"):
         return libname[3:]
     else:
