@@ -185,15 +185,12 @@ def _should_use_pic(cc_toolchain, feature_configuration, crate_type, compilation
         bool: Whether or not [PIC][pic] should be enabled.
     """
 
-    # We use the same logic to select between `pic` and `nopic` outputs as the C++ rules:
-    # - For shared libraries - we use `pic`. This covers `dylib`, `cdylib` and `proc-macro` crate types.
-    # - In `fastbuild` and `dbg` mode we use `pic` by default.
-    # - In `opt` mode we use `nopic` outputs to build binaries.
-    if crate_type in ("cdylib", "dylib", "proc-macro"):
-        return cc_toolchain.needs_pic_for_dynamic_libraries(feature_configuration = feature_configuration)
-    elif compilation_mode in ("fastbuild", "dbg"):
-        return True
-    return False
+    # DBX: We always use PIC. It's already on by default for all Rust code for all
+    # targets that we care about (see documentation about -C relocation-model).
+    # On Linux, rustc turns on PIE by default, which requires all dependent libraries to be PIC.
+    # We could pass -C relocation-model=static instead, but why?
+    # On Windows and Mac, turning on/off PIC doesn't do anything anyway.
+    return True
 
 def _is_proc_macro(crate_info):
     return "proc-macro" in (crate_info.type, crate_info.wrapped_crate_type)
