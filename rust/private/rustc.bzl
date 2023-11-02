@@ -478,7 +478,7 @@ def _process_build_scripts(
     extra_inputs, out_dir, build_env_file, build_flags_files = _create_extra_input_args(build_info, dep_info, include_link_flags = include_link_flags)
     return extra_inputs, out_dir, build_env_file, build_flags_files
 
-def _symlink_for_ambiguous_lib(actions, toolchain, crate_info, lib):
+def _symlink_lib(actions, toolchain, crate_info, lib, ambiguous):
     """Constructs a disambiguating symlink for a library dependency.
 
     Args:
@@ -486,6 +486,7 @@ def _symlink_for_ambiguous_lib(actions, toolchain, crate_info, lib):
       toolchain: The Rust toolchain object.
       crate_info (CrateInfo): The target crate's info.
       lib (File): The library to symlink to.
+      ambiguous (bool): Whether to append a hash to disambiguate libraries with the same name.
 
     Returns:
       (File): The disambiguating symlink for the library.
@@ -506,15 +507,20 @@ def _symlink_for_ambiguous_lib(actions, toolchain, crate_info, lib):
         # Strip the .pic suffix
         lib_name = lib_name[:-4]
         prefix = "lib"
-        extension = ".pic.a"
+        extension = ".a"
     else:
         prefix = "lib"
         extension = ".a"
 
+    if ambiguous:
+        # Add a hash of the original library path to disambiguate libraries with the same basename.
+        disambiguator = "-{}".format(path_hash)
+    else:
+        disambiguator = ""
+
     # Ensure the symlink follows the lib<name>.a pattern on Unix-like platforms
     # or <name>.lib on Windows.
-    # Add a hash of the original library path to disambiguate libraries with the same basename.
-    symlink_name = "{}{}-{}{}".format(prefix, lib_name, path_hash, extension)
+    symlink_name = "{}{}{}{}".format(prefix, lib_name, disambiguator, extension)
 
     # Add the symlink to a target crate-specific _ambiguous_libs/ subfolder,
     # to avoid possible collisions with sibling crates that may depend on the
@@ -555,8 +561,8 @@ def _disambiguate_libs(actions, toolchain, crate_info, dep_info, use_pic):
     ambiguous_libs = {}
 
     # A dictionary maintaining a mapping from preferred library name to the
-    # last visited artifact with that name.
-    visited_libs = {}
+    # artifacts with that name.
+    artifacts_by_name_and_path = {}
     for link_input in dep_info.transitive_noncrates.to_list():
         for lib in link_input.libraries:
             # FIXME: Dynamic libs are not disambiguated right now, there are
@@ -567,7 +573,17 @@ def _disambiguate_libs(actions, toolchain, crate_info, dep_info, use_pic):
                 continue
             artifact = get_preferred_artifact(lib, use_pic)
             name = get_lib_name_for_windows(artifact) if toolchain.target_os.startswith("windows") else get_lib_name_default(artifact)
+            if name not in artifacts_by_name_and_path:
+                artifacts_by_name_and_path[name] = {}
+            artifacts_by_name_and_path[name][artifact.path] = artifact
 
+    for name, artifacts in artifacts_by_name_and_path.items():
+        if len(artifacts) > 1:
+            # We have multiple libraries with the same name.
+            for artifact in artifacts.values():
+                ambiguous_libs[artifact.path] = _symlink_lib(actions, toolchain, crate_info, artifact, ambiguous=True)
+        else:
+            artifact = list(artifacts.values())[0]
             # On Linux-like platforms, normally library base names start with
             # `lib`, following the pattern `lib[name].(a|lo)` and we pass
             # -lstatic=name.
@@ -580,24 +596,13 @@ def _disambiguate_libs(actions, toolchain, crate_info, dep_info, use_pic):
                 artifact.basename.endswith(".a") and not artifact.basename.startswith("lib")
             ) or (
                 toolchain.target_os.startswith("windows") and not artifact.basename.endswith(".lib")
+            ) or (
+                artifact.basename.endswith(".pic.a")
             )
 
-            # Detect cases where we need to disambiguate library dependencies
-            # by constructing symlinks.
-            if (
-                needs_symlink_to_standardize_name or
-                # We have multiple libraries with the same name.
-                (name in visited_libs and visited_libs[name].path != artifact.path)
-            ):
-                # Disambiguate the previously visited library (if we just detected
-                # that it is ambiguous) and the current library.
-                if name in visited_libs:
-                    old_path = visited_libs[name].path
-                    if old_path not in ambiguous_libs:
-                        ambiguous_libs[old_path] = _symlink_for_ambiguous_lib(actions, toolchain, crate_info, visited_libs[name])
-                ambiguous_libs[artifact.path] = _symlink_for_ambiguous_lib(actions, toolchain, crate_info, artifact)
+            if needs_symlink_to_standardize_name:
+                ambiguous_libs[artifact.path] = _symlink_lib(actions, toolchain, crate_info, artifact, ambiguous=False)
 
-            visited_libs[name] = artifact
     return ambiguous_libs
 
 def _depend_on_metadata(crate_info, force_depend_on_objects):
