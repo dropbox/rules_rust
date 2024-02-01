@@ -53,7 +53,8 @@ def rustdoc_compile_action(
         crate_info,
         output = None,
         rustdoc_flags = [],
-        is_test = False):
+        is_test = False,
+        capture_output = False):
     """Create a struct of information needed for a `rustdoc` compile action based on crate passed to the rustdoc rule.
 
     Args:
@@ -128,6 +129,7 @@ def rustdoc_compile_action(
         include_link_flags = False,
         force_depend_on_objects = is_test,
         skip_expanding_rustc_env = True,
+        error_format = "json" if capture_output else None,
     )
     compile_inputs = depset(extra_link_inputs, transitive = [compile_inputs])
 
@@ -205,6 +207,7 @@ def _rust_doc_impl(ctx):
         crate_info = crate_info,
         output = output_dir,
         rustdoc_flags = rustdoc_flags,
+        capture_output = ctx.attr.capture_output,
     )
 
     if ctx.attr.capture_output:
