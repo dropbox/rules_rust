@@ -536,7 +536,8 @@ def _cargo_build_script_impl(ctx):
         toolchain = None,
         # Set use_default_shell_env so that $PATH is set, as tools like Cmake
         # may want to probe $PATH for helper tools.
-        use_default_shell_env = True,
+        # TODO(DBX): this requires bazel 7
+        # use_default_shell_env = True,
     )
 
     return [
