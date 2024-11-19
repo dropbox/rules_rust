@@ -345,7 +345,7 @@ def _rust_test_impl(ctx):
 
         # crate.rustc_env is already expanded upstream in rust_library rule implementation
         rustc_env = dict(crate.rustc_env)
-        data_paths = depset(direct = getattr(ctx.attr, "data", [])).to_list()
+        data_paths = depset(direct = getattr(ctx.attr, "data", []), transitive = [compile_data_targets]).to_list()
         rustc_env.update(expand_dict_value_locations(
             ctx,
             ctx.attr.rustc_env,
@@ -397,7 +397,7 @@ def _rust_test_impl(ctx):
                 ),
             )
 
-        data_paths = depset(direct = getattr(ctx.attr, "data", [])).to_list()
+        data_paths = depset(direct = getattr(ctx.attr, "data", []) + getattr(ctx.attr, "compile_data", [])).to_list()
         rustc_env = expand_dict_value_locations(
             ctx,
             ctx.attr.rustc_env,
