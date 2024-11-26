@@ -552,7 +552,9 @@ def _cargo_build_script_impl(ctx):
             flags = flags_out,
             linker_flags = link_flags,
             link_search_paths = link_search_paths,
-            compile_data = depset(extra_output, transitive = script_data),
+            # TODO(DBX): passing `script_data` through here breaks a pile of hacks
+            # compile_data = depset(extra_output, transitive = script_data),
+            compile_data = depset(extra_output),
         ),
         OutputGroupInfo(
             **output_groups
